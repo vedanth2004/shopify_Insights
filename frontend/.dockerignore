@@ -1,0 +1,12 @@
+node_modules
+npm-debug.log
+.next
+.env
+.env.local
+*.log
+.DS_Store
+.vscode
+.idea
+coverage
+.nyc_output
+

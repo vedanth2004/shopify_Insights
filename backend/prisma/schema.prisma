@@ -1,0 +1,173 @@
+// Prisma schema for multi-tenant Shopify data ingestion service
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Tenant/Store model
+model Tenant {
+  id          String   @id @default(cuid())
+  storeName   String   @unique
+  storeUrl    String   @unique
+  apiKey      String
+  apiSecret   String   @db.Text
+  accessToken String?  @db.Text
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  customers   Customer[]
+  orders      Order[]
+  products    Product[]
+  events      Event[]
+
+  @@map("tenants")
+}
+
+// Customer model
+model Customer {
+  id              String   @id @default(cuid())
+  tenantId        String
+  shopifyId       String
+  email           String?
+  firstName       String?
+  lastName         String?
+  phone           String?
+  totalSpent      Float    @default(0)
+  ordersCount     Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  shopifyCreatedAt DateTime?
+  shopifyUpdatedAt DateTime?
+
+  // Relations
+  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  orders          Order[]
+
+  @@unique([tenantId, shopifyId])
+  @@index([tenantId])
+  @@index([email])
+  @@map("customers")
+}
+
+// Order model
+model Order {
+  id              String   @id @default(cuid())
+  tenantId        String
+  shopifyId       String
+  orderNumber     String
+  customerId      String?
+  email           String?
+  financialStatus String?
+  fulfillmentStatus String?
+  totalPrice      Float
+  subtotalPrice   Float
+  totalTax        Float
+  currency        String   @default("USD")
+  orderDate       DateTime
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  shopifyCreatedAt DateTime?
+  shopifyUpdatedAt DateTime?
+
+  // Relations
+  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customer        Customer? @relation(fields: [customerId], references: [id])
+  lineItems       OrderLineItem[]
+
+  @@unique([tenantId, shopifyId])
+  @@index([tenantId])
+  @@index([customerId])
+  @@index([orderDate])
+  @@map("orders")
+}
+
+// Order Line Item model
+model OrderLineItem {
+  id              String   @id @default(cuid())
+  orderId         String
+  productId       String?
+  shopifyProductId String?
+  shopifyVariantId String?
+  title           String
+  quantity        Int
+  price           Float
+  totalPrice      Float
+  sku             String?
+  variantTitle    String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  order           Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@index([productId])
+  @@map("order_line_items")
+}
+
+// Product model
+model Product {
+  id              String   @id @default(cuid())
+  tenantId        String
+  shopifyId       String
+  title           String
+  handle          String
+  vendor          String?
+  productType     String?
+  status          String?
+  totalInventory  Int      @default(0)
+  totalSales      Int      @default(0)
+  totalRevenue    Float    @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  shopifyCreatedAt DateTime?
+  shopifyUpdatedAt DateTime?
+
+  // Relations
+  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, shopifyId])
+  @@index([tenantId])
+  @@map("products")
+}
+
+// Custom Events model (for cart abandoned, checkout started, etc.)
+model Event {
+  id              String   @id @default(cuid())
+  tenantId        String
+  eventType       String   // 'cart_abandoned', 'checkout_started', 'product_viewed', etc.
+  customerId      String?
+  customerEmail   String?
+  productId       String?
+  orderId         String?
+  metadata        Json?    // Additional event data
+  createdAt       DateTime @default(now())
+
+  // Relations
+  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([eventType])
+  @@index([createdAt])
+  @@map("events")
+}
+
+// User model for authentication
+model User {
+  id              String   @id @default(cuid())
+  email           String   @unique
+  passwordHash    String
+  name            String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("users")
+}
+

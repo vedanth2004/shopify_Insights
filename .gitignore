@@ -1,0 +1,72 @@
+# Dependencies
+node_modules/
+backend/node_modules/
+frontend/node_modules/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+backend/.env
+frontend/.env
+
+# Build outputs
+dist/
+build/
+backend/dist/
+frontend/.next/
+frontend/out/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Prisma
+# Keep migrations but ignore lock file if needed
+# backend/prisma/migrations/
+
+# Testing
+coverage/
+.nyc_output/
+
+# Deployment
+.vercel
+.railway
+
+# Documentation (keep only README.md)
+ASSIGNMENT_CHECKLIST.md
+SETUP.md
+IMPLEMENTATION_STATUS.md
+QUICK_START.md
+PROJECT_SUMMARY.md
+ARCHITECTURE.md
+ORDER_CUSTOMER_DATA_ANALYSIS.md
+SHOPIFY_TEMPLATE_ANALYSIS.md
+ASSUMPTIONS.md
+API.md
+
+# Template files
+shopify-app-template-remix-main/
+
+# Deployment guide (optional - remove if you want to keep it)
+# DEPLOYMENT.md
+
