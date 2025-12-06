@@ -80,12 +80,11 @@ npx prisma migrate dev
 npx prisma generate
 ```
 
-**For Supabase:**
-1. Create a project at https://supabase.com
-2. Go to Settings → Database
-3. Copy the connection string (use "Connection pooling" for production)
-4. Update `DATABASE_URL` in `backend/.env`
-5. Run migrations:
+**For Render PostgreSQL:**
+1. Create a PostgreSQL database on Render
+2. Link it to your backend service (Render sets DATABASE_URL automatically)
+3. Migrations run automatically on deploy via `npx prisma migrate deploy` in start command
+4. Or run manually in Render shell:
 ```bash
 cd backend
 npx prisma migrate deploy
@@ -217,17 +216,21 @@ The service uses two methods for keeping data in sync:
 ### Deployment Architecture
 
 - **Backend**: Render (Web Service)
-- **Database**: Supabase (PostgreSQL)
-- **Frontend**: Vercel (Next.js)
+- **Database**: Render (Managed PostgreSQL)
+- **Frontend**: Render (Static Site or Web Service)
 
-### Step 1: Set up Supabase Database
+### Step 1: Set up Render PostgreSQL Database
 
-1. Go to https://supabase.com and create a new project
-2. Wait for the database to be provisioned
-3. Go to **Settings → Database**
-4. Copy the **Connection String** (use "Connection pooling" mode for production)
-   - Format: `postgresql://postgres.[PROJECT_REF]:[PASSWORD]@aws-0-[REGION].pooler.supabase.com:6543/postgres?sslmode=require`
-5. Save this for the backend deployment
+1. Go to https://render.com and sign in
+2. Click **New +** → **PostgreSQL**
+3. Configure the database:
+   - **Name**: `shopify-insights-db`
+   - **Database**: `shopify_insights`
+   - **Region**: Choose closest to your users
+   - **Plan**: Free (or paid for production)
+4. Click **Create Database**
+5. Wait 2-3 minutes for provisioning
+6. The connection string will be automatically available when you link it to your backend service
 
 ### Step 2: Deploy Backend to Render
 
@@ -256,39 +259,43 @@ The service uses two methods for keeping data in sync:
 6. Click **Create Web Service**
 7. Note the backend URL (e.g., `https://shopify-insights-backend.onrender.com`)
 
-### Step 3: Deploy Frontend to Vercel
+### Step 3: Deploy Frontend to Render
 
-1. Go to https://vercel.com and sign in
-2. Click **Add New** → **Project**
-3. Import your GitHub repository
-4. Configure the project:
-   - **Framework Preset**: Next.js
+1. Go to https://render.com and sign in
+2. Click **New +** → **Web Service** (or **Static Site** for static export)
+3. Connect your GitHub repository
+4. Configure the service:
+   - **Name**: `shopify-insights-frontend`
    - **Root Directory**: `frontend`
-   - **Build Command**: `npm run build` (auto-detected)
-   - **Output Directory**: `.next` (auto-detected)
+   - **Environment**: `Node`
+   - **Build Command**: `npm install && npm run build`
+   - **Start Command**: `npm start`
 5. Add Environment Variables:
    ```env
    NEXT_PUBLIC_API_URL=https://shopify-insights-backend.onrender.com
-   NEXTAUTH_URL=https://your-frontend-url.vercel.app
+   NEXTAUTH_URL=https://shopify-insights-frontend.onrender.com
    NEXTAUTH_SECRET=your-strong-nextauth-secret-here
    ```
-6. Click **Deploy**
-7. Note the frontend URL (e.g., `https://shopify-insights.vercel.app`)
+6. Click **Create Web Service**
+7. Wait for build to complete (3-5 minutes)
+8. Note the frontend URL (e.g., `https://shopify-insights-frontend.onrender.com`)
 
 ### Step 4: Update Backend Environment Variables
 
-After getting your Vercel frontend URL, update the Render backend environment variables:
-- `SHOPIFY_HOST`: Your Vercel frontend URL (without https://)
-- `FRONTEND_URL`: Your Vercel frontend URL (with https://)
-- `CORS_ORIGIN`: Your Vercel frontend URL (with https://)
+After getting your Render frontend URL, update the Render backend environment variables:
+- `SHOPIFY_HOST`: Your Render frontend URL (without https://)
+- `FRONTEND_URL`: Your Render frontend URL (with https://)
+- `CORS_ORIGIN`: Your Render frontend URL (with https://)
 
-Then redeploy the backend service.
+The backend service will automatically redeploy when you save the changes.
 
 ### Environment Variables Summary
 
 **Backend (Render):**
 ```env
-DATABASE_URL=postgresql://postgres.[PROJECT_REF]:[PASSWORD]@aws-0-[REGION].pooler.supabase.com:6543/postgres?sslmode=require
+# DATABASE_URL is automatically set when you link the PostgreSQL database
+# No need to set it manually - Render handles this automatically
+
 JWT_SECRET=your-secret-key
 SHOPIFY_API_KEY=your-api-key
 SHOPIFY_API_SECRET=your-api-secret
@@ -300,10 +307,10 @@ PORT=3001
 NODE_ENV=production
 ```
 
-**Frontend (Vercel):**
+**Frontend (Render):**
 ```env
 NEXT_PUBLIC_API_URL=https://your-backend-url.onrender.com
-NEXTAUTH_URL=https://your-frontend-url.vercel.app
+NEXTAUTH_URL=https://your-frontend-url.onrender.com
 NEXTAUTH_SECRET=your-nextauth-secret
 ```
 
@@ -351,8 +358,8 @@ Built for Xeno FDE Internship Assignment 2025
 - Set `NODE_ENV=production` in production
 - Use strong `JWT_SECRET` and `NEXTAUTH_SECRET`
 - Configure `CORS_ORIGIN` with your frontend URL
-- Use Supabase connection pooler for better performance
-- Set up proper database backups (Supabase Pro plan)
+- Render PostgreSQL automatically handles connection pooling
+- Set up proper database backups (Render Pro plan includes backups)
 - Enable webhook signature verification
 - Configure rate limiting
 - Set up monitoring and logging
@@ -362,7 +369,8 @@ Built for Xeno FDE Internship Assignment 2025
 
 See [DEPLOYMENT.md](./DEPLOYMENT.md) for step-by-step instructions on deploying to:
 - **Backend**: Render
-- **Database**: Supabase  
-- **Frontend**: Vercel
-#   s h o p i f y _ I n s i g h t s  
+- **Database**: Render (Managed PostgreSQL)
+- **Frontend**: Render
+#   s h o p i f y _ I n s i g h t s 
+ 
  
