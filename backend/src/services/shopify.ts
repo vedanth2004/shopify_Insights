@@ -340,7 +340,7 @@ export const fetchOrders = async (
         subtotalPrice: parseFloat(order.subtotalPriceSet?.shopMoney?.amount || '0'),
         totalTax: parseFloat(order.totalTaxSet?.shopMoney?.amount || '0'),
         currency: order.totalPriceSet?.shopMoney?.currencyCode || 'USD',
-        orderDate: new Date(order.createdAt),
+        orderDate: order.createdAt ? new Date(order.createdAt) : new Date(), // Fallback to current date if missing
         shopifyCreatedAt: order.createdAt,
         shopifyUpdatedAt: order.updatedAt,
         lineItems: (order.lineItems?.edges || []).map((item: any) => {
@@ -655,6 +655,25 @@ export const syncTenantData = async (tenantId: string) => {
           }
 
         try {
+          // Validate required fields before saving
+          if (!orderData.orderDate || isNaN(new Date(orderData.orderDate).getTime())) {
+            console.error(`❌ Invalid orderDate for order ${orderData.orderNumber}: ${orderData.orderDate}`);
+            orderData.orderDate = new Date(); // Fallback to current date
+          }
+          
+          if (isNaN(orderData.totalPrice) || orderData.totalPrice < 0) {
+            console.error(`❌ Invalid totalPrice for order ${orderData.orderNumber}: ${orderData.totalPrice}`);
+            orderData.totalPrice = 0; // Fallback to 0
+          }
+          
+          if (isNaN(orderData.subtotalPrice) || orderData.subtotalPrice < 0) {
+            orderData.subtotalPrice = orderData.totalPrice; // Fallback to totalPrice
+          }
+          
+          if (isNaN(orderData.totalTax) || orderData.totalTax < 0) {
+            orderData.totalTax = 0; // Fallback to 0
+          }
+          
           console.log(`Processing order ${orderData.orderNumber} (Shopify ID: ${orderData.shopifyId})`);
           console.log(`  - Total Price: ${orderData.totalPrice}`);
           console.log(`  - Order Date: ${orderData.orderDate}`);
@@ -757,14 +776,20 @@ export const syncTenantData = async (tenantId: string) => {
             shopifyId: orderData.shopifyId,
             orderNumber: orderData.orderNumber,
             totalPrice: orderData.totalPrice,
+            subtotalPrice: orderData.subtotalPrice,
+            totalTax: orderData.totalTax,
             orderDate: orderData.orderDate,
+            currency: orderData.currency,
+            customerId: customer?.id,
             error: orderError.message,
             stack: orderError.stack,
           });
           // Continue with next order even if this one fails
+          // Don't increment orderCount if save failed
+          continue;
         }
 
-          orderCount++;
+        orderCount++;
         }
 
         // Check if there are more pages (simplified - in production, use pageInfo)
@@ -835,9 +860,18 @@ export const syncTenantData = async (tenantId: string) => {
     }
     console.log(`Product stats updated for ${allProducts.length} products`);
 
+    // Verify actual counts in database
+    const actualOrderCount = await prisma.order.count({ where: { tenantId } });
+    const actualCustomerCount = await prisma.customer.count({ where: { tenantId } });
+    
     console.log(`Sync completed for tenant ${tenantId}`);
-    console.log(`Summary: ${customerCount} customers, ${orderCount} orders, ${productCount} products synced`);
-    return { success: true, customers: allCustomers.length, orders: orderCount, products: allProducts.length };
+    console.log(`Summary: ${customerCount} customers fetched, ${actualCustomerCount} in DB, ${orderCount} orders processed, ${actualOrderCount} in DB, ${productCount} products synced`);
+    
+    if (orderCount > 0 && actualOrderCount === 0) {
+      console.error(`⚠️ WARNING: ${orderCount} orders were processed but 0 are in database. Check error logs above.`);
+    }
+    
+    return { success: true, customers: actualCustomerCount, orders: actualOrderCount, products: allProducts.length };
   } catch (error) {
     console.error(`Sync failed for tenant ${tenantId}:`, error);
     throw error;
